@@ -14,7 +14,6 @@ import json
 import re, os, sys, random, math, time
 
 # update to osu api key
-key = " "
 key = "~~"
 
 bot = commands.Bot(command_prefix='!')
