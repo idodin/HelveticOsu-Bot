@@ -23,46 +23,10 @@ bot = commands.Bot(command_prefix='!')
 def on_ready():
     print('Logged in as {0} ({1})'.format(bot.user.name, bot.user.id))
     
-
 @bot.command(pass_context=True)
 @asyncio.coroutine
-@commands.cooldown(1, 10)
-def user(ctx, *, arg1: str):
-    parameters = {"k": key, "u": arg1}
-    print('command executed')
-    # get username, country, country rank, total pp, playcount and ranked score
-    response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
-    data = response.json()[0]
-    # get beatmap id and pp value for top play
-    parameters = {"k": key, "u": data["user_id"]}
-    userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
-    bestinfo = userbest.json()[0]
-    # get artist, title, and creator of top play map
-    parameters = {"k" : key, "b" : bestinfo["beatmap_id"]}
-    bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-    bestscore_info = bestscore.json()[0]
-
-    
-    url = "https://osu.ppy.sh/u/%s" % (data["user_id"])
-    r=requests.get(url)
-    soup = BeautifulSoup(r.content, "html.parser")
-    r.close()
-    # parse avatar image url
-    img_html = soup.find("div", class_="avatar-holder")
-    img_tag = img_html.contents[0]
-    print(img_tag["src"])
-    img_url="https:%s" %(img_tag["src"])
-    print(img_url)
-
-    
-    top_score="`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:3])
-    user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
-    user_info.set_thumbnail(url=img_url)
-    user_info.add_field(name="Global Rank", value="`%s`"%(data["pp_rank"]))
-    user_info.add_field(name="Performance Points", value="`%s`"%(data["pp_raw"]))
-    user_info.add_field(name="Accuracy", value="`%s`"%(data["accuracy"][0:5]))
-    user_info.add_field(name="Top Rank", value=top_score)
-    yield from bot.send_message(ctx.message.channel, embed=user_info)
+def hi(ctx):
+    yield from bot.send_message(ctx.message.channel, "wassup fam")
     
 @bot.event
 @asyncio.coroutine
@@ -100,12 +64,42 @@ def on_message(message):
         yield from bot.send_message(message.channel, "%s - %s - %s - %s" % output_list)
     yield from bot.process_commands(message)
         
-
 @bot.command(pass_context=True)
 @asyncio.coroutine
-def hi(ctx):
-    yield from bot.send_message(ctx.message.channel, "wassup fam")
-        
-        
+@commands.cooldown(1, 10)
+def user(ctx, *, arg1: str):
+    parameters = {"k": key, "u": arg1}
+    print('command executed')
+    # get username, country, country rank, total pp, playcount and ranked score
+    response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+    data = response.json()[0]
+    # get beatmap id and pp value for top play
+    parameters = {"k": key, "u": data["user_id"]}
+    userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
+    bestinfo = userbest.json()[0]
+    # get artist, title, and creator of top play map
+    parameters = {"k" : key, "b" : bestinfo["beatmap_id"]}
+    bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+    bestscore_info = bestscore.json()[0]
     
+    url = "https://osu.ppy.sh/u/%s" % (data["user_id"])
+    r=requests.get(url)
+    soup = BeautifulSoup(r.content, "html.parser")
+    r.close()
+    # parse avatar image url
+    img_html = soup.find("div", class_="avatar-holder")
+    img_tag = img_html.contents[0]
+    print(img_tag["src"])
+    img_url="https:%s" %(img_tag["src"])
+    print(img_url)
+    
+    top_score="`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:3])
+    user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
+    user_info.set_thumbnail(url=img_url)
+    user_info.add_field(name="Global Rank", value="`%s`"%(data["pp_rank"]))
+    user_info.add_field(name="Performance Points", value="`%s`"%(data["pp_raw"]))
+    user_info.add_field(name="Accuracy", value="`%s`"%(data["accuracy"][0:5]))
+    user_info.add_field(name="Top Rank", value=top_score)
+    yield from bot.send_message(ctx.message.channel, embed=user_info)
+        
 bot.run(os.environ.get("DISCORD_TOKEN"))
