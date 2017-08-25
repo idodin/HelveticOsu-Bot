@@ -15,6 +15,7 @@ import re, os, sys, random, math, time
 
 # update to osu api key
 key = " "
+key = "~~"
 
 bot = commands.Bot(command_prefix='!')
 
@@ -22,11 +23,14 @@ bot = commands.Bot(command_prefix='!')
 @asyncio.coroutine
 def on_ready():
     print('Logged in as {0} ({1})'.format(bot.user.name, bot.user.id))
+    
 
 @bot.command(pass_context=True)
 @asyncio.coroutine
+@commands.cooldown(1, 10)
 def user(ctx, *, arg1: str):
     parameters = {"k": key, "u": arg1}
+    print('command executed')
     # get username, country, country rank, total pp, playcount and ranked score
     response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
     data = response.json()[0]
@@ -39,10 +43,70 @@ def user(ctx, *, arg1: str):
     bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
     bestscore_info = bestscore.json()[0]
 
-    # put to sleep so it doesn't double post
-    # TO-DO: Change output to embed
-    time.sleep(2)
-    output_list = (data["username"], data["country"], data["pp_country_rank"], data["pp_raw"], data["accuracy"][0:5], data["playcount"], bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"])
-    yield from bot.send_message(ctx.message.channel, "**User data for %s (%s #%s): \n**Performance Points: `%s` \nHit Accuracy: `%s%%` \nPlaycount: `%s` \nTop Score: `%s - %s (mapped by %s) [%s pp]`" % output_list)
+    
+    url = "https://osu.ppy.sh/u/%s" % (data["user_id"])
+    r=requests.get(url)
+    soup = BeautifulSoup(r.content, "html.parser")
+    r.close()
+    # parse avatar image url
+    img_html = soup.find("div", class_="avatar-holder")
+    img_tag = img_html.contents[0]
+    print(img_tag["src"])
+    img_url="https:%s" %(img_tag["src"])
+    print(img_url)
+
+    
+    top_score="`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:3])
+    user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
+    user_info.set_thumbnail(url=img_url)
+    user_info.add_field(name="Global Rank", value="`%s`"%(data["pp_rank"]))
+    user_info.add_field(name="Performance Points", value="`%s`"%(data["pp_raw"]))
+    user_info.add_field(name="Accuracy", value="`%s`"%(data["accuracy"][0:5]))
+    user_info.add_field(name="Top Rank", value=top_score)
+    yield from bot.send_message(ctx.message.channel, embed=user_info)
+    
+@bot.event
+@asyncio.coroutine
+def on_message(message):
+    content = message.content
+    s_index = content.find("osu.ppy.sh/s/")
+    b_index = content.find("osu.ppy.sh/b/")
+    if s_index == -1 and b_index == -1:
+        yield from bot.process_commands(message)
+        return
+    
+    # get beatmap id off of s formatted links
+    elif s_index != -1 and b_index == -1:
+        # grabs beatmapset_id from link, link length = 13
+        beatmapset_id = content[s_index+13:]
+        print(beatmapset_id)
+        parameters = {"k": key, "s": beatmapset_id}
+        response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+        print(response.json())
+        data = response.json()[0]
+        output_list = (data["artist"], data["title"], data["creator"], data["difficultyrating"][0:3])
+        # TO-DO: Change output to embed
+        yield from bot.send_message(message.channel, "%s - %s - %s - %s" % output_list)
+        
+    # get beatmap id off of b formatted links    
+    elif s_index == -1 and b_index !=-1:
+        beatmap_id = content[b_index+13:b_index+19]
+        print(beatmap_id)
+        parameters = {"k": key, "b": beatmap_id}
+        response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+        print("JSON")
+        print(response.json())
+        data = response.json()[0]
+        output_list = (data["artist"], data["title"], data["creator"], data["difficultyrating"][0:3])
+        yield from bot.send_message(message.channel, "%s - %s - %s - %s" % output_list)
+    yield from bot.process_commands(message)
+        
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def hi(ctx):
+    yield from bot.send_message(ctx.message.channel, "wassup fam")
+        
+        
     
 bot.run(os.environ.get("DISCORD_TOKEN"))
