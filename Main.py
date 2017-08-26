@@ -39,29 +39,63 @@ def on_message(message):
         return
     
     # get beatmap id off of s formatted links
+    # TO-DO: add dicts for game mode and approval status
     elif s_index != -1 and b_index == -1:
+        
         # grabs beatmapset_id from link, link length = 13
         beatmapset_id = content[s_index+13:]
-        print(beatmapset_id)
         parameters = {"k": key, "s": beatmapset_id}
         response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        print(response.json())
         data = response.json()[0]
-        output_list = (data["artist"], data["title"], data["creator"], data["difficultyrating"][0:3])
-        # TO-DO: Change output to embed
-        yield from bot.send_message(message.channel, "%s - %s - %s - %s" % output_list)
+
+        # parse beatmap thumbnail img url
+        url = "https://osu.ppy.sh/s/%s" % (beatmapset_id)
+        r=requests.get(url)
+        soup = BeautifulSoup(r.content, "html.parser")
+        r.close()
+        img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
+        img_url="https:%s" %(img_tag["src"]) #get src argument from img tag
+        
+        beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
+        beatmap_info.set_thumbnail(url=img_url)
+        beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
+        beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
+        beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
+        beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
+        beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
+        beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
+        beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
+        beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
+        
+        yield from bot.send_message(message.channel, embed=beatmap_info)
         
     # get beatmap id off of b formatted links    
     elif s_index == -1 and b_index !=-1:
         beatmap_id = content[b_index+13:b_index+19]
-        print(beatmap_id)
         parameters = {"k": key, "b": beatmap_id}
         response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        print("JSON")
-        print(response.json())
         data = response.json()[0]
-        output_list = (data["artist"], data["title"], data["creator"], data["difficultyrating"][0:3])
-        yield from bot.send_message(message.channel, "%s - %s - %s - %s" % output_list)
+
+        url = "https://osu.ppy.sh/b/%s" % (beatmap_id)
+        r=requests.get(url)
+        soup = BeautifulSoup(r.content, "html.parser")
+        r.close()
+        img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
+        img_url="https:%s" % (img_tag["src"]) #get src argument from img tag
+        
+        beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
+        beatmap_info.set_thumbnail(url=img_url)
+        beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
+        beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
+        beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
+        beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
+        beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
+        beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
+        beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
+        beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
+        
+        yield from bot.send_message(message.channel, embed=beatmap_info)
+        
     yield from bot.process_commands(message)
 
 @bot.command(pass_context=True)
@@ -70,6 +104,12 @@ def restart(ctx):
     yield from bot.send_message(ctx.message.channel, "Ciao doods brb")
     python = sys.executable
     os.execl(python, python, *sys.argv)
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def sw(ctx):
+    yield from bot.send_message(ctx.message.channel, "This is why Zhuriel doesn't do software...")
+    yield from bot.delete_message(ctx.message)
         
 @bot.command(pass_context=True)
 @asyncio.coroutine
