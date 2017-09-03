@@ -13,8 +13,14 @@ import json
 # other utilities used
 import re, os, sys, random, math, time
 
+# for DB
+import sqlite3
+
 # update to osu api key
-key = ""
+KEY = ""
+
+# update to database path
+DB_PATH = "./Members.db"
 
 bot = commands.Bot(command_prefix='!')
 
@@ -22,6 +28,44 @@ bot = commands.Bot(command_prefix='!')
 @asyncio.coroutine
 def on_ready():
     print('Logged in as {0} ({1})'.format(bot.user.name, bot.user.id))
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def add(ctx, arg1: str, arg2: str):
+    parameters = {"k" : KEY, "u" : arg2}
+    response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+    print(response.json())
+    if not response.json():
+        yield from bot.send_message(ctx.message.channel, "Please ensure that you have used the command in the following syntax: \n `!add @user [osu user id]`")
+    else:
+        data = response.json()[0]
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        osumembers = c.execute('SELECT Username FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
+        discordmembers = c.execute('SELECT Username FROM Members WHERE UserID = ?', (ctx.message.mentions[0].id,)).fetchall()
+        conn.commit()
+        if not osumembers and not discordmembers:
+            if ctx.message.mentions[0].display_name != data["username"]:
+                yield from bot.change_nickname(ctx.message.author, data["username"])
+            c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, data["username"], data["user_id"]))
+            conn.commit()
+            conn.close()
+            yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+        else:
+            yield from bot.send_message(ctx.message.channel, "User already found in database. If username is not updated in database, please use the `!update` command.")
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def getchannel(ctx):
+    print(ctx.message.channel.name)
+    print(ctx.message.channel.name=="arrival")
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def getroles(ctx):
+    member_role = discord.utils.find(lambda r: r.name == 'Members', ctx.message.server.roles)
+    print(member_role.name)
+    print(member_role.id)
     
 @bot.command(pass_context=True)
 @asyncio.coroutine
@@ -31,72 +75,111 @@ def hi(ctx):
 @bot.event
 @asyncio.coroutine
 def on_message(message):
+    # TO-DO: add dicts for game mode and approval status
     content = message.content
     s_index = content.find("osu.ppy.sh/s/")
     b_index = content.find("osu.ppy.sh/b/")
-    if s_index == -1 and b_index == -1:
+    u_index = content.find("osu.ppy.sh/u/")
+    if message.channel.name != "arrival":
+        if s_index == -1 and b_index == -1 and u_index == -1:
+            yield from bot.process_commands(message)
+            return
+        
+        # get beatmap id off of s formatted links
+        elif s_index != -1 and b_index == -1 and u_index == -1:
+            
+            # grabs beatmapset_id from link, link length = 13
+            beatmapset_id = content[s_index+13:]
+            parameters = {"k": KEY, "s": beatmapset_id}
+            response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+            data = response.json()[0]
+
+            # parse beatmap thumbnail img url
+            url = "https://osu.ppy.sh/s/%s" % (beatmapset_id)
+            r=requests.get(url)
+            soup = BeautifulSoup(r.content, "html.parser")
+            r.close()
+            img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
+            img_url="https:%s" %(img_tag["src"]) #get src argument from img tag
+            
+            beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
+            beatmap_info.set_thumbnail(url=img_url)
+            beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
+            beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
+            beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
+            beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
+            beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
+            beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
+            beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
+            beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
+            
+            yield from bot.send_message(message.channel, embed=beatmap_info)
+            
+        # get beatmap id off of b formatted links    
+        elif s_index == -1 and b_index !=-1 and u_index == -1:
+            beatmap_id = content[b_index+13:b_index+19]
+            parameters = {"k": KEY, "b": beatmap_id}
+            response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+            data = response.json()[0]
+
+            url = "https://osu.ppy.sh/b/%s" % (beatmap_id)
+            r=requests.get(url)
+            soup = BeautifulSoup(r.content, "html.parser")
+            r.close()
+            img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
+            img_url="https:%s" % (img_tag["src"]) #get src argument from img tag
+            
+            beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
+            beatmap_info.set_thumbnail(url=img_url)
+            beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
+            beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
+            beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
+            beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
+            beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
+            beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
+            beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
+            beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
+            
+            yield from bot.send_message(message.channel, embed=beatmap_info)
         yield from bot.process_commands(message)
-        return
-    
-    # get beatmap id off of s formatted links
-    # TO-DO: add dicts for game mode and approval status
-    elif s_index != -1 and b_index == -1:
-        
-        # grabs beatmapset_id from link, link length = 13
-        beatmapset_id = content[s_index+13:]
-        parameters = {"k": key, "s": beatmapset_id}
-        response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        data = response.json()[0]
-
-        # parse beatmap thumbnail img url
-        url = "https://osu.ppy.sh/s/%s" % (beatmapset_id)
-        r=requests.get(url)
-        soup = BeautifulSoup(r.content, "html.parser")
-        r.close()
-        img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
-        img_url="https:%s" %(img_tag["src"]) #get src argument from img tag
-        
-        beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
-        beatmap_info.set_thumbnail(url=img_url)
-        beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
-        beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
-        beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
-        beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
-        beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
-        beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
-        beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
-        beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
-        
-        yield from bot.send_message(message.channel, embed=beatmap_info)
-        
-    # get beatmap id off of b formatted links    
-    elif s_index == -1 and b_index !=-1:
-        beatmap_id = content[b_index+13:b_index+19]
-        parameters = {"k": key, "b": beatmap_id}
-        response = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        data = response.json()[0]
-
-        url = "https://osu.ppy.sh/b/%s" % (beatmap_id)
-        r=requests.get(url)
-        soup = BeautifulSoup(r.content, "html.parser")
-        r.close()
-        img_tag = soup.find("img", class_="bmt") #finds img tag with bmt class
-        img_url="https:%s" % (img_tag["src"]) #get src argument from img tag
-        
-        beatmap_info=discord.Embed(title="Beatmap Info for:", description="**%s - %s (mapped by %s)**" % (data["artist"], data["title"], data["creator"]), color=0xC54B5E)
-        beatmap_info.set_thumbnail(url=img_url)
-        beatmap_info.add_field(name="Difficulty Name", value="`%s`" % (data["version"]), inline=True)
-        beatmap_info.add_field(name="Star Rating", value="`%s`"%(data["difficultyrating"][0:3]), inline=True)
-        beatmap_info.add_field(name="BPM", value="`%s`"%(data["bpm"]), inline=True)
-        beatmap_info.add_field(name="Circle Size", value="`%s`" % (data["diff_size"]), inline=True)
-        beatmap_info.add_field(name="Overall Difficulty", value="`%s`" %(data["diff_overall"]), inline=True)
-        beatmap_info.add_field(name="Approach Rate", value="`%s`" % (data["diff_approach"]), inline=True)
-        beatmap_info.add_field(name="HP Drain", value="`%s`" % (data["diff_drain"]), inline=True)
-        beatmap_info.add_field(name="Drain Time", value="`%s`" % (data["hit_length"]), inline=True)
-        
-        yield from bot.send_message(message.channel, embed=beatmap_info)
-        
-    yield from bot.process_commands(message)
+    # only in arrival channel
+    else:
+        if u_index != -1 and message.author.id != bot.user.id:
+            print(u_index)
+            user_input = content[u_index+13:]
+            user_string = user_input.split(' ')
+            user_string = user_string[0].split('`')
+            print(user_string[0])
+            # check link for user-id format
+            if not user_string[0].isdigit():
+                yield from bot.send_message(message.channel, "Please use user-id links (ie: https://osu.ppy.sh/u/124493)")
+                return
+            else:
+                # get user info from osu api
+                parameters = {"k": KEY, "u": user_string[0]}
+                response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+                # not found
+                if not response.json():
+                    yield from bot.send_message(message.channel, "Error: the user id `%s` does not exist" % (user_string[0]))
+                else:
+                    data = response.json()[0]
+                    username = data["username"]
+                    conn = sqlite3.connect(DB_PATH)
+                    c = conn.cursor()
+                    if not c.execute('SELECT * FROM Members where UserID=?', (message.author.id,)).fetchall() and not c.execute('SELECT * FROM Members where OsuID=?', (user_id,)).fetchall():
+                        if message.author.name != username:
+                            yield from bot.change_nickname(message.author, username)
+                        c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (message.author.id, message.author.name, data["user_id"]))
+                        conn.commit()
+                        conn.close()
+                        yield from bot.add_roles(message.author, (discord.utils.find(lambda r: r.name == 'Members', message.server.roles)))# searches for and assigns Members role
+                    else:
+                        yield from bot.send_message(message.channel, "Either osu! profile or discord profile has already been registered. Please wait to be manually verified by a moderator.")
+                        yield from bot.send_message(discord.utils.find(lambda c: c.name == 'team', message.server.channels), "User error in registering. Check #arrival") # searches for and sends toteams channel
+            yield from bot.process_commands(message)
+        else:
+            yield from bot.process_commands(message)
+    yield from bot.process_commands(message)  
 
 @bot.command(pass_context=True)
 @asyncio.coroutine
@@ -104,18 +187,97 @@ def restart(ctx):
     yield from bot.send_message(ctx.message.channel, "Ciao doods brb")
     python = sys.executable
     os.execl(python, python, *sys.argv)
+    yield from bot.send_message(ctx.message.channel, "I'm back boiss")
 
 @bot.command(pass_context=True)
 @asyncio.coroutine
 def sw(ctx):
     yield from bot.send_message(ctx.message.channel, "This is why Zhuriel doesn't do software...")
     yield from bot.delete_message(ctx.message)
-        
+
+#TO-DO see if "gateway" method works better (ie. subsequent, non-nested if statements)
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def update(ctx, arg1: str):
+    modrole = discord.utils.find(lambda r: r.name == 'Mods', ctx.message.server.roles)
+    print(modrole)
+    #checks if executor is mod
+    if modrole in ctx.message.author.roles:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        print('Checking for entry')
+        username = c.execute('SELECT Username FROM Members where UserID=?', (ctx.message.mentions[0].id,)).fetchall()
+        conn.commit()
+        conn.close()
+        #no userid entry in database
+        if not username:
+            print('No entry found for %s' % (ctx.message.mentions[0].display_name))
+            parameters = {"k": KEY, "u": ctx.message.mentions[0].display_name}
+            print('Checking if username exists on osu!')
+            response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+            data = response.json()[0]
+            #no osu profile 
+            if not response:
+                print('No osu profile found for %s' % (ctx.message.mentions[0].display_name))
+                yield from bot.send_message(ctx.message.channel, "No osu! profile with the username `%s`, use the !add command" % (ctx.message.mentions[0].display_name))
+            elif ctx.message.mentions[0].display_name == data["username"]:
+                display = ctx.message.mentions[0].display_name
+                print('Profile found for %s with OsuID %s' % (display, data["user_id"]))
+                conn=sqlite3.connect(DB_PATH)
+                c=conn.cursor()
+                c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, ctx.message.mentions[0].display_name, data["user_id"]))
+                conn.commit()
+                conn.close()
+                print('Entry created for %s' % (ctx.message.mentions[0].display_name))
+                yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+        # userid entry in database
+        else:
+            print("Entry found for %s" % (ctx.message.mentions[0].display_name))
+            conn=sqlite3.connect(DB_PATH)
+            c=conn.cursor()
+            osu_id = c.execute('SELECT OsuID FROM Members where UserID=?', (ctx.message.mentions[0].id,)).fetchall()
+            conn.commit()
+            parameters = {"k": KEY, "u": osu_id[0][0]}
+            response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+            print(response.json())
+            data = response.json()[0]
+            # osu username matches display name
+            if data["username"] == ctx.message.mentions[0].display_name:
+                print("osu! username = display name")
+                # database username != osu username
+                if username[0][0] != data["username"]:
+                    c.execute('UPDATE Members SET Username = ? WHERE UserID = ?', (data["username"], ctx.message.mentions[0].id))
+                    conn.commit()
+                    print("Entry updated")
+                    yield from bot.send_message(ctx.message.channel, "Entry updated for `%s`." % (ctx.message.mentions[0].display_name))
+                    conn.close()
+                else:
+                    yield from bot.send_message(ctx.message.channel, "The user `%s's` information is already up to date." % (ctx.message.mentions[0].display_name))
+                    conn.close()
+            # osu username doesn't match display name   
+            elif data["username"] != ctx.message.mentions[0].display_name:
+                oldname = ctx.message.mentions[0].display_name
+                print("osu! username != displayname")
+                yield from bot.change_nickname(ctx.message.mentions[0], data["username"])
+                # odatabase username != osu username
+                if username[0][0] != data["username"]:
+                    c.execute('UPDATE Members SET Username = ? WHERE UserID = ?', (data["username"], ctx.message.mentions[0].id))
+                    conn.commit()
+                    print("Entry updated")
+                    conn.close()
+                    yield from bot.send_message(ctx.message.channel, "Entry update for `%s`." % (ctx.message.mentions[0].dispay_name))
+                elif username[0][0] == data["username"]:
+                    yield from bot.send_message(ctx.message.channel, "The user `%s's` display name has been changed to `%s`." % (oldname, ctx.message.mentions[0].display_name))
+    else:
+        yield from bot.send_message(ctx.message.channel, "You do not have sufficient roles to execute this command.")
+            
+            
+# TO-DO: make command work with user-ids, not just usernames
 @bot.command(pass_context=True)
 @asyncio.coroutine
 @commands.cooldown(1, 10)
 def user(ctx, *, arg1: str):
-    parameters = {"k": key, "u": arg1}
+    parameters = {"k": KEY, "u": arg1}
     print("%s attempted to execute %s on %s" %(ctx.message.author, ctx.command, time.ctime()))
     # get username, country, country rank, total pp, playcount and ranked score
     response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
@@ -129,11 +291,11 @@ def user(ctx, *, arg1: str):
     else:
         data = response.json()[0]
         # get beatmap id and pp value for top play
-        parameters = {"k": key, "u": data["user_id"]}
+        parameters = {"k": KEY, "u": data["user_id"]}
         userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
         bestinfo = userbest.json()[0]
         # get artist, title, and creator of top play map
-        parameters = {"k" : key, "b" : bestinfo["beatmap_id"]}
+        parameters = {"k" : KEY, "b" : bestinfo["beatmap_id"]}
         bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
         bestscore_info = bestscore.json()[0]
         
@@ -141,6 +303,7 @@ def user(ctx, *, arg1: str):
         r=requests.get(url)
         soup = BeautifulSoup(r.content, "html.parser")
         r.close()
+        
         # parse avatar image url
         img_html = soup.find("div", class_="avatar-holder") #finds avatar-holder class
         img_tag = img_html.contents[0] #gets 1st element from avatar-holder class array (img tag)
