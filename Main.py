@@ -32,27 +32,55 @@ def on_ready():
 @bot.command(pass_context=True)
 @asyncio.coroutine
 def add(ctx, arg1: str, arg2: str):
-    parameters = {"k" : KEY, "u" : arg2}
-    response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
-    print(response.json())
-    if not response.json():
-        yield from bot.send_message(ctx.message.channel, "Please ensure that you have used the command in the following syntax: \n `!add @user [osu user id]`")
-    else:
-        data = response.json()[0]
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        osumembers = c.execute('SELECT Username FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
-        discordmembers = c.execute('SELECT Username FROM Members WHERE UserID = ?', (ctx.message.mentions[0].id,)).fetchall()
-        conn.commit()
-        if not osumembers and not discordmembers:
-            if ctx.message.mentions[0].display_name != data["username"]:
-                yield from bot.change_nickname(ctx.message.author, data["username"])
-            c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, data["username"], data["user_id"]))
-            conn.commit()
-            conn.close()
-            yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+    modrole = discord.utils.find(lambda r: r.name == 'Mods', ctx.message.server.roles)
+    if modrole in ctx.message.author.roles:
+        parameters = {"k" : KEY, "u" : arg2}
+        response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+        if not response.json():
+            yield from bot.send_message(ctx.message.channel, "Please ensure that you have used the command in the following syntax: \n `!add @user [osu user id]`")
         else:
-            yield from bot.send_message(ctx.message.channel, "User already found in database. If username is not updated in database, please use the `!update` command.")
+            data = response.json()[0]
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            osumembers = c.execute('SELECT Username FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
+            discordmembers = c.execute('SELECT Username FROM Members WHERE UserID = ?', (ctx.message.mentions[0].id,)).fetchall()
+            if not osumembers and not discordmembers:
+                if ctx.message.mentions[0].display_name != data["username"]:
+                    yield from bot.change_nickname(ctx.message.author, data["username"])
+                c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, data["username"], data["user_id"]))
+                conn.commit()
+                conn.close()
+                yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+            else:
+                conn.close()
+                yield from bot.send_message(ctx.message.channel, "User already found in database. If username is not updated in database, please use the `!update` command.")
+    else:
+        yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def qadd(ctx, arg1: str):
+    modrole = discord.utils.find(lambda r: r.name == 'Mods', ctx.message.server.roles)
+    if modrole in ctx.message.author.roles:
+        parameters = {"k": KEY, "u": ctx.message.mentions[0].display_name}
+        response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+        if not response.json():
+            yield from bot.send_message(ctx.message.channel, "No osu! user with the name `%s`." % (ctx.message.mentions[0].display_name))
+        else:
+            data = response.json()[0]
+            conn =sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            osumembers = c.execute('SELECT Username FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
+            discordmembers = c.execute('SELECT Username FROM Members where UserID = ?', (ctx.message.mentions[0].id,)).fetchall()
+            if not osumembers and not discordmembers:
+                c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, data["username"], data["user_id"]))
+                conn.commit()
+                conn.close()
+                yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+            else:
+                yield from bot.send_message(ctx.message.channel, "Entry already found for the requested osu! profile or discord ID.")
+    else:
+        yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
 
 @bot.command(pass_context=True)
 @asyncio.coroutine
@@ -166,7 +194,7 @@ def on_message(message):
                     username = data["username"]
                     conn = sqlite3.connect(DB_PATH)
                     c = conn.cursor()
-                    if not c.execute('SELECT * FROM Members where UserID=?', (message.author.id,)).fetchall() and not c.execute('SELECT * FROM Members where OsuID=?', (user_id,)).fetchall():
+                    if not c.execute('SELECT * FROM Members where UserID=?', (message.author.id,)).fetchall() and not c.execute('SELECT * FROM Members where OsuID=?', (data["user_id"],)).fetchall():
                         if message.author.name != username:
                             yield from bot.change_nickname(message.author, username)
                         c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (message.author.id, message.author.name, data["user_id"]))
@@ -206,30 +234,15 @@ def update(ctx, arg1: str):
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         print('Checking for entry')
+        if not ctx.message.mentions:
+            yield from bot.send_message(ctx.message.channel, "Please ensure that you are mentioning the user you are trying to update the database entry for: \n `!update @user`")
+            return
         username = c.execute('SELECT Username FROM Members where UserID=?', (ctx.message.mentions[0].id,)).fetchall()
         conn.commit()
         conn.close()
         #no userid entry in database
         if not username:
-            print('No entry found for %s' % (ctx.message.mentions[0].display_name))
-            parameters = {"k": KEY, "u": ctx.message.mentions[0].display_name}
-            print('Checking if username exists on osu!')
-            response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
-            data = response.json()[0]
-            #no osu profile 
-            if not response:
-                print('No osu profile found for %s' % (ctx.message.mentions[0].display_name))
-                yield from bot.send_message(ctx.message.channel, "No osu! profile with the username `%s`, use the !add command" % (ctx.message.mentions[0].display_name))
-            elif ctx.message.mentions[0].display_name == data["username"]:
-                display = ctx.message.mentions[0].display_name
-                print('Profile found for %s with OsuID %s' % (display, data["user_id"]))
-                conn=sqlite3.connect(DB_PATH)
-                c=conn.cursor()
-                c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (ctx.message.mentions[0].id, ctx.message.mentions[0].display_name, data["user_id"]))
-                conn.commit()
-                conn.close()
-                print('Entry created for %s' % (ctx.message.mentions[0].display_name))
-                yield from bot.send_message(ctx.message.channel, "Entry created for `%s`." % (ctx.message.mentions[0].display_name))
+            yield from bot.send_message(ctx.message.channel, "No entry found for `%s`. Please use !add command." % (ctx.message.mentions[0].display_name))
         # userid entry in database
         else:
             print("Entry found for %s" % (ctx.message.mentions[0].display_name))
@@ -265,11 +278,11 @@ def update(ctx, arg1: str):
                     conn.commit()
                     print("Entry updated")
                     conn.close()
-                    yield from bot.send_message(ctx.message.channel, "Entry update for `%s`." % (ctx.message.mentions[0].dispay_name))
+                    yield from bot.send_message(ctx.message.channel, "Entry and display name updated for `%s`." % (oldname))
                 elif username[0][0] == data["username"]:
                     yield from bot.send_message(ctx.message.channel, "The user `%s's` display name has been changed to `%s`." % (oldname, ctx.message.mentions[0].display_name))
     else:
-        yield from bot.send_message(ctx.message.channel, "You do not have sufficient roles to execute this command.")
+        yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
             
             
 # TO-DO: make command work with user-ids, not just usernames
