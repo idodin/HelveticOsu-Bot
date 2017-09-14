@@ -103,7 +103,7 @@ def hi(ctx):
 @bot.event
 @asyncio.coroutine
 def on_message(message):
-    # TO-DO: add dicts for game mode and approval status
+    # TO-DO: add dicts for game mode and approval status 
     content = message.content
     s_index = content.find("osu.ppy.sh/s/")
     b_index = content.find("osu.ppy.sh/b/")
@@ -175,8 +175,11 @@ def on_message(message):
         if u_index != -1 and message.author.id != bot.user.id:
             print(u_index)
             user_input = content[u_index+13:]
-            user_string = user_input.split(' ')
+            # strip usual characters that follow user link
+            user_string = user_input.split()
             user_string = user_string[0].split('`')
+            user_string = user_string[0].split(')')
+            user_string = user_string[0].split(']')
             print(user_string[0])
             # check link for user-id format
             if not user_string[0].isdigit():
