@@ -17,7 +17,7 @@ import re, os, sys, random, math, time
 import sqlite3
 
 # update to osu api key
-KEY = ""
+KEY = "3e6507b39526057b4e75891fee75be84af7208cf"
 
 # update to database path
 DB_PATH = "./Members.db"
@@ -103,12 +103,15 @@ def hi(ctx):
 @bot.event
 @asyncio.coroutine
 def on_message(message):
-    # TO-DO: add dicts for game mode and approval status 
+    # TO-DO: add dicts for game mode and approval status
+    print("wat")
     content = message.content
+    print(message.content)
     s_index = content.find("osu.ppy.sh/s/")
     b_index = content.find("osu.ppy.sh/b/")
     u_index = content.find("osu.ppy.sh/u/")
-    if message.channel.name != "arrival":
+    print("U_index is %d", u_index)
+    if message.channel.name != "developer":
         if s_index == -1 and b_index == -1 and u_index == -1:
             yield from bot.process_commands(message)
             return
