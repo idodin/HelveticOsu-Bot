@@ -17,7 +17,7 @@ import re, os, sys, random, math, time
 import sqlite3
 
 # update to osu api key
-KEY = "3e6507b39526057b4e75891fee75be84af7208cf"
+KEY = ""
 
 # update to database path
 DB_PATH = "./Members.db"
@@ -104,14 +104,11 @@ def hi(ctx):
 @asyncio.coroutine
 def on_message(message):
     # TO-DO: add dicts for game mode and approval status
-    print("wat")
     content = message.content
-    print(message.content)
     s_index = content.find("osu.ppy.sh/s/")
     b_index = content.find("osu.ppy.sh/b/")
     u_index = content.find("osu.ppy.sh/u/")
-    print("U_index is %d", u_index)
-    if message.channel.name != "developer":
+    if message.channel.name != "arrival":
         if s_index == -1 and b_index == -1 and u_index == -1:
             yield from bot.process_commands(message)
             return
@@ -191,7 +188,7 @@ def on_message(message):
             else:
                 # get user info from osu api
                 parameters = {"k": KEY, "u": user_string[0]}
-                response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+                response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters, verify=False)
                 # not found
                 if not response.json():
                     yield from bot.send_message(message.channel, "Error: the user id `%s` does not exist" % (user_string[0]))
@@ -287,6 +284,68 @@ def update(ctx, arg1: str):
                     yield from bot.send_message(ctx.message.channel, "Entry and display name updated for `%s`." % (oldname))
                 elif username[0][0] == data["username"]:
                     yield from bot.send_message(ctx.message.channel, "The user `%s's` display name has been changed to `%s`." % (oldname, ctx.message.mentions[0].display_name))
+    else:
+        yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
+
+#TO-DO see if "gateway" method works better (ie. subsequent, non-nested if statements)
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def updateall(ctx):
+    print("command received")
+    modrole = discord.utils.find(lambda r: r.name == 'Mods', ctx.message.server.roles)
+    print(modrole)
+    #checks if executor is mod
+    if modrole in ctx.message.author.roles:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        for member in ctx.message.server.members:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            print("Member Username is: %s \n Member ID is: %s" % (member.display_name, member.id))
+            username = c.execute('SELECT Username FROM Members where UserID=?', (member.id,)).fetchall()
+            conn.commit()
+            conn.close()
+            #no userid entry in database
+            if not username:
+                yield from bot.send_message(ctx.message.channel, "No entry found for `%s`. Please use !add command." % (member.display_name))
+            # userid entry in database
+            else:
+                print("Entry found for %s" % (member.display_name))
+                conn=sqlite3.connect(DB_PATH)
+                c=conn.cursor()
+                osu_id = c.execute('SELECT OsuID FROM Members where UserID=?', (member.id,)).fetchall()
+                conn.commit()
+                parameters = {"k": KEY, "u": osu_id[0][0]}
+                response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters, verify=False)
+                print(response.json())
+                data = response.json()[0]
+                # osu username matches display name
+                if data["username"] == member.display_name:
+                    print("osu! username = display name")
+                    # database username != osu username
+                    if username[0][0] != data["username"]:
+                        c.execute('UPDATE Members SET Username = ? WHERE UserID = ?', (data["username"], member.id))
+                        conn.commit()
+                        print("Entry updated")
+                        yield from bot.send_message(ctx.message.channel, "Entry updated for `%s`." % (member.display_name))
+                        conn.close()
+                    else:
+                        yield from bot.send_message(ctx.message.channel, "The user `%s's` information is already up to date." % (member.display_name))
+                        conn.close()
+                # osu username doesn't match display name   
+                elif data["username"] != member.display_name:
+                    oldname = member.display_name
+                    print("osu! username != displayname")
+                    yield from bot.change_nickname(member, data["username"])
+                    # odatabase username != osu username
+                    if username[0][0] != data["username"]:
+                        c.execute('UPDATE Members SET Username = ? WHERE UserID = ?', (data["username"], member.id))
+                        conn.commit()
+                        print("Entry updated")
+                        conn.close()
+                        yield from bot.send_message(ctx.message.channel, "Entry and display name updated for `%s`." % (oldname))
+                    elif username[0][0] == data["username"]:
+                        yield from bot.send_message(ctx.message.channel, "The user `%s's` display name has been changed to `%s`." % (oldname, member.display_name))
     else:
         yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
             
