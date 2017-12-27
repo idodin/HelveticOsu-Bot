@@ -24,6 +24,13 @@ DB_PATH = "./Members.db"
 
 bot = commands.Bot(command_prefix='!')
 
+mode_list = {
+    "0"     :       "osu!",
+    "1"     :       "Taiko",
+    "2"     :       "Catch the Beat",
+    "3"     :       "osu!mania"
+    }
+
 @bot.event
 @asyncio.coroutine
 def on_ready():
@@ -350,50 +357,69 @@ def updateall(ctx):
         yield from bot.send_message(ctx.message.channel, "You do not have sufficient priviledges to execute this command.")
             
             
-# TO-DO: make command work with user-ids, not just usernames
 @bot.command(pass_context=True)
 @asyncio.coroutine
 @commands.cooldown(1, 10)
 def user(ctx, *, arg1: str):
-    parameters = {"k": KEY, "u": arg1}
     print("%s attempted to execute %s on %s" %(ctx.message.author, ctx.command, time.ctime()))
-    # get username, country, country rank, total pp, playcount and ranked score
+    list = []
+    i = 0
+    for key in range(0,4):
+        parameters = {"k": KEY, "u": arg1, "m": key}
+        response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+        if not response.json():
+            user_info = discord.Embed(title="User info for %s" % (arg1) , description = " ", color=0xC54B5E)
+            user_info.add_field(name = "Error:", value = "`No user found by the name %s`" % (arg1))
+            print("CommandError: No User Found")
+            yield from bot.send_message(ctx.message.channel, embed=user_info)
+            return
+        else:
+            data = response.json()[0]
+            list.append(data["pp_rank"])
+            i += 1
+    print(list)
+    minelement = int(list[0])
+    minindex = 0
+    for i in range (0,4):
+        if int(list[i]) < minelement:
+            print("yes" + str(i))
+            minelement = int(list[i])
+            minindex = i
+            continue
+        else:
+            continue
+        
+    print('minindex = ' + str(minindex))
+    parameters = {"k": KEY, "u": arg1, "m": minindex}
     response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+    data = response.json()[0]
+    # get beatmap id and pp value for top play
+    parameters = {"k": KEY, "u": data["user_id"], "m": minindex}
+    userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
+    bestinfo = userbest.json()[0]
+    # get artist, title, and creator of top play map
+    parameters = {"k" : KEY, "b" : bestinfo["beatmap_id"]}
+    bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+    bestscore_info = bestscore.json()[0]
     
-    # json empty if user not found...
-    if not response.json():
-        user_info = discord.Embed(title="User info for %s" % (arg1) , description = " ", color=0xC54B5E)
-        user_info.add_field(name = "Error:", value = "`No user found by the name %s`" % (arg1))
-        print("CommandError: No User Found")
-        yield from bot.send_message(ctx.message.channel, embed=user_info)
-    else:
-        data = response.json()[0]
-        # get beatmap id and pp value for top play
-        parameters = {"k": KEY, "u": data["user_id"]}
-        userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
-        bestinfo = userbest.json()[0]
-        # get artist, title, and creator of top play map
-        parameters = {"k" : KEY, "b" : bestinfo["beatmap_id"]}
-        bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        bestscore_info = bestscore.json()[0]
-        
-        url = "https://osu.ppy.sh/u/%s" % (data["user_id"])
-        r=requests.get(url)
-        soup = BeautifulSoup(r.content, "html.parser")
-        r.close()
-        
-        # parse avatar image url
-        img_html = soup.find("div", class_="avatar-holder") #finds avatar-holder class
-        img_tag = img_html.contents[0] #gets 1st element from avatar-holder class array (img tag)
-        img_url="https:%s" %(img_tag["src"]) #get src argument from img tag
-        
-        top_score="`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:3])
-        user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
-        user_info.set_thumbnail(url=img_url)
-        user_info.add_field(name="Performance Points", value="`%s`"%(data["pp_raw"]))
-        user_info.add_field(name="Accuracy", value="`%s`"%(data["accuracy"][0:5]))
-        user_info.add_field(name="Top Rank", value=top_score)
-        yield from bot.send_message(ctx.message.channel, embed=user_info)
-        print("Command Success")
+    url = "https://osu.ppy.sh/u/%s" % (data["user_id"])
+    r=requests.get(url)
+    soup = BeautifulSoup(r.content, "html.parser")
+    r.close()
+    
+    # parse avatar image url
+    img_html = soup.find("div", class_="avatar-holder") #finds avatar-holder class
+    img_tag = img_html.contents[0] #gets 1st element from avatar-holder class array (img tag)
+    img_url="https:%s" %(img_tag["src"]) #get src argument from img tag
+    
+    top_score="`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:3])
+    user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
+    user_info.set_thumbnail(url=img_url)
+    user_info.add_field(name="Mode", value="%s"%(mode_list[str(minindex)]))
+    user_info.add_field(name="Performance Points", value="`%s`"%(data["pp_raw"]))
+    user_info.add_field(name="Accuracy", value="`%s`"%(data["accuracy"][0:5]))
+    user_info.add_field(name="Top Rank", value=top_score)
+    yield from bot.send_message(ctx.message.channel, embed=user_info)
+    print("Command Success")
         
 bot.run(os.environ.get("DISCORD_TOKEN"))
