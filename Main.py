@@ -17,7 +17,7 @@ import re, os, sys, random, math, time
 import sqlite3
 
 # update to osu api key
-KEY = ""
+KEY = "Insert osu! API key here"
 
 # update to database path
 DB_PATH = "./Members.db"
@@ -381,7 +381,7 @@ def user(ctx, *, arg1: str):
     minelement = int(list[0])
     minindex = 0
     for i in range (0,4):
-        if int(list[i]) < minelement:
+        if int(list[i]) < minelement and int(list[i]) > 0:
             print("yes" + str(i))
             minelement = int(list[i])
             minindex = i
@@ -394,8 +394,10 @@ def user(ctx, *, arg1: str):
     response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
     data = response.json()[0]
     # get beatmap id and pp value for top play
-    parameters = {"k": KEY, "u": data["user_id"], "m": minindex}
+    parameters = {"k": KEY, "u": arg1, "m": minindex}
     userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
+    print(data["user_id"])
+    print(userbest.json())
     bestinfo = userbest.json()[0]
     # get artist, title, and creator of top play map
     parameters = {"k" : KEY, "b" : bestinfo["beatmap_id"]}
@@ -422,4 +424,5 @@ def user(ctx, *, arg1: str):
     yield from bot.send_message(ctx.message.channel, embed=user_info)
     print("Command Success")
         
-bot.run(os.environ.get("DISCORD_TOKEN"))
+bot.run("INSERT TOKEN HERE")
+
