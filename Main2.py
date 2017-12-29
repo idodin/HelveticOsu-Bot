@@ -13,7 +13,7 @@ from config import parser
 
 
 #Extension List
-startup = ["osu",  "update"]
+startup = ["osu",  "update", "error"]
 
 config = parser.Parser()
 
@@ -25,6 +25,7 @@ def on_ready():
     print('Logged in as {} ({})'.format(bot.user.name, bot.user.id))
 
 @bot.command()
+@commands.has_any_role(*config.modroles)
 @asyncio.coroutine
 def load(extension_name: str):
     """
@@ -38,6 +39,7 @@ def load(extension_name: str):
     yield from bot.say("{} loaded succesfully.".format(extension_name))
 
 @bot.command()
+@commands.has_any_role(*config.modroles)
 @asyncio.coroutine
 def unload(extension_name: str):
     """
@@ -47,6 +49,7 @@ def unload(extension_name: str):
     yield from bot.say("{} unloaded.".format(extension_name))
 
 @bot.command(pass_context=True)
+@commands.has_any_role(*config.modroles)
 @asyncio.coroutine
 def restart():
     yield from bot.say("Bye everyone! I'll be right back, woof~!")
