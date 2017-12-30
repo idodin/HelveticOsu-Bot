@@ -51,6 +51,12 @@ def unload(extension_name: str):
     bot.unload_extension(extension_name)
     yield from bot.say("{} unloaded.".format(extension_name))
 
+@bot.command
+@asyncio.coroutine
+def update():
+    yield from bot.say("I'm evolving! Woof!~")
+    os.system('git pull')
+
 @bot.command(pass_context=True)
 @commands.has_any_role(*config.modroles)
 @asyncio.coroutine
