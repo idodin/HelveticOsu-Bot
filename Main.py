@@ -78,11 +78,14 @@ def on_message(message):
                 if(status == 2):
                     yield from bot.send_message(message.channel, "%s successfully added to the database." % (message.author.display_name))
                     yield from bot.change_nickname(message.author, utility.displayupdate)
+                    yield from bot.add_roles(message.author, (discord.utils.find(lambda r: r.name == 'Members', message.server.roles)))# searches for and assigns Members role
                 elif(status == 1):
                     yield from bot.send_message(message.channel, "%s's entry has been successfully updated." % (message.author.display_name))
                     yield from bot.change_nickname(message.author, utility.displayupdate)
+                    yield from bot.add_roles(message.author, (discord.utils.find(lambda r: r.name == 'Members', message.server.roles)))# searches for and assigns Members role
                 else:
                     yield from bot.send_message(message.channel, "Error in adding user. Please ensure user is not already in the database.")
+                    yield from bot.send_message(discord.utils.find(lambda c: c.name == 'team', message.server.channels), "User error in registering. Check #arrival")
     yield from bot.process_commands(message)
 
 if __name__ == "__main__":
