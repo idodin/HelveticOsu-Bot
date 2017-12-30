@@ -35,7 +35,7 @@ class Osu():
         minelement = int(list[0])
         minindex = 0
         for i in range (0,4):
-            if int(list[i]) < minelement:
+            if int(list[i]) < minelement and int(list[i]) > 0:
                 print("yes" + str(i))
                 minelement = int(list[i])
                 minindex = i
