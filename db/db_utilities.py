@@ -11,29 +11,39 @@ class Db_Utilities():
     def __init__(self, db_path: str, osukey: str):
         self.db_path=db_path
         self.osukey = osukey
-        self.displayname = None
+        self.displayupdate = None
 
     def add(self, member, osuID = None):
+        # Checks if the user's discordID is already recorded
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
         if self.discordExists(member):
-            displayname = self.updateDisplay(member) 
-            if(displayname):
-                self.displayname = displayname
+            #tries to update displayname
+            displayupdate = self.updateDisplay(member)
+            osuID = c.execute('SELECT OsuID FROM Members WHERE Username = ?', (member.display_name,)).fetchall()
+            print(osuID[0][0])
+            if(displayupdate):
+                if(osuID) and self.displayClash(member, osuID[0][0]):
+                    return 0
+                self.displayupdate = displayupdate
                 return  1
+        #no osuID passed to function
         if osuID == None:
             clash = self.displayClash(member)
             response = requests.get("https://osu.ppy.sh/api/get_user", params={"k" : self.osukey, "u" : member.display_name})
+            print(response.json())
+            if not response.json():
+                return -1
             data = response.json()[0]
             osuID = data["user_id"]
         else:
-            clash = self.displayClash(osuID, member)
-        if clash:
+            clash = self.displayClash(member, osuID)
+        if clash: 
             return 0
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
         c.execute('INSERT INTO Members (UserID, Username, OsuID) VALUES (?, ?, ?)', (member.id, member.display_name, osuID,))
         conn.commit()
         conn.close()
-        self.displayname = self.updateDisplay(member)
+        self.displayupdate = self.updateDisplay(member)
         return 2
 
     # Function checks if a member's discordID exists in the database
@@ -72,23 +82,34 @@ class Db_Utilities():
         return data["username"]
 
     # Function checks if a user's display name or userID clashes with a current user's display name.
-    def displayClash(self, osuID = None, member = None):
+    def displayClash(self, member = None, osuID = None):
+        # Check whether to use name or id to search API (based on arguments passed).
         if osuID == None and member == None:
             return False
-        elif member == None:
-            name = osuID
-        else:
+        elif osuID == None:
             name = member.display_name
+        else:
+            name = osuID
         parameters = {"k" : self.osukey, "u" : name}
         response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
+        #nothing returned, so user doesn't exist
         if not response.json():
             return False
         else:
             data=response.json()[0]
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        clash = c.execute('SELECT OsuID FROM Members WHERE Username = ?', (data["username"],)).fetchall()
-        if not clash:
+        clashid = c.execute('SELECT UserID FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
+        if clashid:
+            if(str(clashid[0][0]) == member.id):
+                print("id same")
+                clashid = False
+        clashname = c.execute('SELECT UserID FROM Members WHERE Username = ?', (data["username"],)).fetchall()
+        if clashname:
+            if(str(clashname[0][0]) == member.id):
+                print("name same")
+                clashname= False
+        if clashid or clashname:
             return True
         else:
             return False
