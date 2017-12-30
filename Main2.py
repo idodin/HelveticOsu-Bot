@@ -11,16 +11,13 @@ import os, sys
 # Parse config file
 from config import parser
 
-# Utility for auto-add
-from db import db_utilities as db
 
 #Extension List
-startup = ["osu",  "update"]
+startup = ["osu",  "update", "error"]
 
 config = parser.Parser()
-utility = db.Db_Utilities(config.db_path, config.osukey)
 
-bot=commands.Bot(command_prefix='!')
+bot=commands.Bot(command_prefix='?')
 
 @bot.event
 @asyncio.coroutine
@@ -58,32 +55,6 @@ def restart():
     yield from bot.say("Bye everyone! I'll be right back, woof~!")
     python = sys.executable
     os.execl(python, python, *sys.argv)
-
-
-@bot.event
-@asyncio.coroutine
-def on_message(message):
-    if message.channel.name == "developer":
-        u_index = message.content.find("osu.ppy.sh/u/")
-        if u_index != -1:
-            user_input=message.content[u_index + 13:]
-            user_string = user_input.split()
-            user_string = user_string[0].split('`')
-            user_string = user_string[0].split(')')
-            user_string = user_string[0].split(']')
-            if not user_string[0].isdigit():
-                yield from bot.send_message(message.channel, "Please use user-id links (ie: https://osu.ppy.sh/u/124493)")
-            else:
-                status = utility.add(message.author, user_string[0])
-                if(status == 2):
-                    yield from bot.send_message(message.channel, "%s successfully added to the database." % (message.author.display_name))
-                    yield from bot.change_nickname(message.author, utility.displayupdate)
-                elif(status == 1):
-                    yield from bot.send_message(message.channel, "%s's entry has been successfully updated." % (message.author.display_name))
-                    yield from bot.change_nickname(message.author, utility.displayupdate)
-                else:
-                    yield from bot.send_message(message.channel, "Error in adding user. Please ensure user is not already in the database.")
-    yield from bot.process_commands(message)
 
 if __name__ == "__main__":
     for extension in startup:
