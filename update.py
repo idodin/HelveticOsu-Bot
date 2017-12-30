@@ -41,7 +41,7 @@ class Update():
     @commands.has_any_role(*config.modroles)
     @asyncio.coroutine
     def addall(self, ctx):
-        yield from self.bot.say(str(ctx.message.server.members))
+        yield from self.bot.say("%s" %(ctx.message.server.members))
         for member in ctx.message.server.members:
             status = self.utility.add(member)
             if(status == 2):
