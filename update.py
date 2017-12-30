@@ -53,7 +53,7 @@ class Update():
                 yield from self.bot.say("No osu user by the name %s and no OsuID on record for that discord user. Update username and try again." % (member.display_name))
             else:
                 yield from self.bot.say("Error in adding '%s'. Please ensure '%s' is not already in the database." % (member.display_name, member.display_name))
-            time.sleep(2)
+            time.sleep(5)
          
 def setup(bot):
     bot.add_cog(Update(bot))
