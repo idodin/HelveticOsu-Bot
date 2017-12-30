@@ -51,6 +51,12 @@ def unload(extension_name: str):
     bot.unload_extension(extension_name)
     yield from bot.say("{} unloaded.".format(extension_name))
 
+@bot.command()
+@asyncio.coroutine
+def update():
+    yield from bot.say("I'm evolving! Woof!~")
+    os.system('git pull')
+
 @bot.command(pass_context=True)
 @commands.has_any_role(*config.modroles)
 @asyncio.coroutine
@@ -63,7 +69,7 @@ def restart():
 @bot.event
 @asyncio.coroutine
 def on_message(message):
-    if message.channel.name == "developer":
+    if message.channel.name == "arrival":
         u_index = message.content.find("osu.ppy.sh/u/")
         if u_index != -1:
             user_input=message.content[u_index + 13:]
@@ -78,11 +84,14 @@ def on_message(message):
                 if(status == 2):
                     yield from bot.send_message(message.channel, "%s successfully added to the database." % (message.author.display_name))
                     yield from bot.change_nickname(message.author, utility.displayupdate)
+                    yield from bot.add_roles(message.author, (discord.utils.find(lambda r: r.name == 'Members', message.server.roles)))# searches for and assigns Members role
                 elif(status == 1):
                     yield from bot.send_message(message.channel, "%s's entry has been successfully updated." % (message.author.display_name))
                     yield from bot.change_nickname(message.author, utility.displayupdate)
+                    yield from bot.add_roles(message.author, (discord.utils.find(lambda r: r.name == 'Members', message.server.roles)))# searches for and assigns Members role
                 else:
                     yield from bot.send_message(message.channel, "Error in adding user. Please ensure user is not already in the database.")
+                    yield from bot.send_message(discord.utils.find(lambda c: c.name == 'team', message.server.channels), "User error in registering. Check #arrival")
     yield from bot.process_commands(message)
 
 if __name__ == "__main__":
