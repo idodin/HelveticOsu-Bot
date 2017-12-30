@@ -25,10 +25,10 @@ class Update():
             print(ctx.message.mentions[0].id)
             if(status == 2):
                 yield from self.bot.say("%s successfully added to the database." % (ctx.message.mentions[0].display_name))
-                yield from self.bot.change_nickname(ctx.message.mentions[0], self.utility.displayname)
+                yield from self.bot.change_nickname(ctx.message.mentions[0], self.utility.displayupdate)
             elif(status == 1):
                 yield from self.bot.say("%s's entry has been successfully updated." % (ctx.message.mentions[0].display_name))
-                yield from self.bot.change_nickname(ctx.message.mentions[0], self.utility.displayname)
+                yield from self.bot.change_nickname(ctx.message.mentions[0], self.utility.displayupdate)
             elif(status == -1):
                 yield from self.bot.say("No osu user by the name %s and no OsuID on record for that discord user. Update username and try again." % (ctx.message.mentions[0].display_name))
             else:

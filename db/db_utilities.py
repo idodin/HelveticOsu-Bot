@@ -17,11 +17,10 @@ class Db_Utilities():
         # Checks if the user's discordID is already recorded
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        if self.discordExists(member):
+        if self.discordExists(member) and osuID == None:
             #tries to update displayname
             displayupdate = self.updateDisplay(member)
             osuID = c.execute('SELECT OsuID FROM Members WHERE Username = ?', (member.display_name,)).fetchall()
-            print(osuID[0][0])
             if(displayupdate):
                 if(osuID) and self.displayClash(member, osuID[0][0]):
                     return 0
@@ -31,7 +30,6 @@ class Db_Utilities():
         if osuID == None:
             clash = self.displayClash(member)
             response = requests.get("https://osu.ppy.sh/api/get_user", params={"k" : self.osukey, "u" : member.display_name})
-            print(response.json())
             if not response.json():
                 return -1
             data = response.json()[0]
@@ -50,7 +48,6 @@ class Db_Utilities():
     def discordExists(self, member):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        print(member.id)
         discordlist = c.execute('SELECT Username FROM Members WHERE UserID = ?', (member.id,)).fetchall()
         conn.close()
         if not discordlist:
@@ -81,7 +78,7 @@ class Db_Utilities():
         conn.close()
         return data["username"]
 
-    # Function checks if a user's display name or userID clashes with a current user's display name.
+    # Function checks if a user's osuID clashes with a current user's osuID.
     def displayClash(self, member = None, osuID = None):
         # Check whether to use name or id to search API (based on arguments passed).
         if osuID == None and member == None:
@@ -94,22 +91,16 @@ class Db_Utilities():
         response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
         #nothing returned, so user doesn't exist
         if not response.json():
-            return False
+            return True
         else:
             data=response.json()[0]
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         clashid = c.execute('SELECT UserID FROM Members WHERE OsuID = ?', (data["user_id"],)).fetchall()
         if clashid:
-            if(str(clashid[0][0]) == member.id):
-                print("id same")
+            if(str(clashid[0][0]) == member.id) and not osuID:
                 clashid = False
-        clashname = c.execute('SELECT UserID FROM Members WHERE Username = ?', (data["username"],)).fetchall()
-        if clashname:
-            if(str(clashname[0][0]) == member.id):
-                print("name same")
-                clashname= False
-        if clashid or clashname:
+        if clashid:
             return True
         else:
             return False
