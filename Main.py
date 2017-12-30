@@ -63,7 +63,7 @@ def restart():
 @bot.event
 @asyncio.coroutine
 def on_message(message):
-    if message.channel.name == "developer":
+    if message.channel.name == "arrival":
         u_index = message.content.find("osu.ppy.sh/u/")
         if u_index != -1:
             user_input=message.content[u_index + 13:]
