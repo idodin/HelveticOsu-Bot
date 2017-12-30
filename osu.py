@@ -10,6 +10,9 @@ from src import disc_utilities
 from config import parser
 
 class Osu():
+    """
+    This extension contains commands that parse and display information from the osu API and website.
+    """
     def __init__(self, bot):
         self.bot = bot
         self.config = parser.Parser()
@@ -19,6 +22,11 @@ class Osu():
     @commands.cooldown(1, 10)
     @asyncio.coroutine
     def user(self, ctx, *, arg1: str):
+        """
+        Display profile information for the specified user.
+        Usage: !user Im so mad bro
+        Displays information for the mode on which the user has the highest global rank.
+        """
         parameters = {"k": self.config.osukey, "u": arg1}
         response = requests.get("https://osu.ppy.sh/api/get_user", params=parameters)
         if not response.json():

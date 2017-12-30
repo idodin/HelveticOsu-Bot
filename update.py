@@ -13,6 +13,9 @@ config = parser.Parser()
 modroles = config.modroles
 
 class Update():
+    """
+    This extension contains commands that update and moderate the user database.
+    """
     def __init__(self, bot):
         self.bot = bot
         self.config = config
@@ -22,6 +25,10 @@ class Update():
     @commands.has_any_role(*config.modroles)
     @asyncio.coroutine
     def add(self, ctx):
+        """
+        [Moderator Only] - Add the mentioned user to the user database.
+        Usage: !add @mention
+        """
         try:
             status = self.utility.add(ctx.message.mentions[0])
             if(status == 2):
@@ -41,6 +48,13 @@ class Update():
     @commands.has_any_role(*config.modroles)
     @asyncio.coroutine
     def addall(self, ctx):
+        """
+        [Moderator Only] - Parses the member list, adding members to the database.
+        Danger! This command takes a long time to work and often needs to be executed multiple times.
+        Only use in #developer
+        Usage: !addall
+        """
+
         for member in ctx.message.server.members:
             status = self.utility.add(member)
             if(status == 2):

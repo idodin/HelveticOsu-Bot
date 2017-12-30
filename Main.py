@@ -32,7 +32,9 @@ def on_ready():
 @asyncio.coroutine
 def load(extension_name: str):
     """
-    Load a specific extension. Extension list = ["osu", "moderation", "update"]
+    [Moderator Only] - Load a specific extension.
+    Extension list = ["osu", "update"]
+    Usage !load [extension]
     """
     try:
         bot.load_extension(extension_name)
@@ -46,7 +48,9 @@ def load(extension_name: str):
 @asyncio.coroutine
 def unload(extension_name: str):
     """
-    Unload a specific extension. Extension list = ["osu", "moderation", "update"]
+    [Moderator Only] - Unload a specific extension.
+    Extension list = ["osu", "update"]
+    Usage: !unload [extension]
     """
     bot.unload_extension(extension_name)
     yield from bot.say("{} unloaded.".format(extension_name))
@@ -54,6 +58,10 @@ def unload(extension_name: str):
 @bot.command()
 @asyncio.coroutine
 def update():
+    """
+    [Moderator Only] - Update the bot by pulling from the git repository.
+    Usage: !update
+    """
     yield from bot.say("I'm evolving! Woof!~")
     os.system('git pull')
 
@@ -61,6 +69,10 @@ def update():
 @commands.has_any_role(*config.modroles)
 @asyncio.coroutine
 def restart():
+    """
+    [Moderator Only] - Restart the bot.
+    Usage: !restart
+    """
     yield from bot.say("Bye everyone! I'll be right back, woof~!")
     python = sys.executable
     os.execl(python, python, *sys.argv)
