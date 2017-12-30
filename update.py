@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands
 import asyncio
 
+import time
+
 from db import db_utilities
 from config import parser
 
@@ -39,6 +41,7 @@ class Update():
     @commands.has_any_role(*config.modroles)
     @asyncio.coroutine
     def addall(self, ctx):
+        yield from self.bot.say(str(ctx.message.server.members))
         for member in ctx.message.server.members:
             status = self.utility.add(member)
             if(status == 2):
@@ -51,7 +54,8 @@ class Update():
                 yield from self.bot.say("No osu user by the name %s and no OsuID on record for that discord user. Update username and try again." % (member.display_name))
             else:
                 yield from self.bot.say("Error in adding '%s'. Please ensure '%s' is not already in the database." % (member.display_name, member.display_name))
- 
+            time.sleep(2)
+         
 def setup(bot):
     bot.add_cog(Update(bot))
 
