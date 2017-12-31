@@ -14,7 +14,12 @@ class Disc_Utilities():
             "2"     :       "Catch the Beat",
             "3"     :       "osu!mania"
             }
-    
+        self.revgamemodes = {
+            "osu"   :       "0",
+            "taiko" :       "1",
+            "ctb"   :       "2",
+            "mania" :       "3"
+            }
     def embedDict(self, embed: discord.embeds.Embed, dictionary: dict):
         for key in dictionary:
             if "PP" in key or "Performance Points" in key:
