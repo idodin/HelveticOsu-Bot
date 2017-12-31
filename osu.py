@@ -42,6 +42,7 @@ class Osu():
                 arg = arg + " " + arg1.split(" ")[i]
             arg1 = arg
             minindex = self.utility.revgamemodes[mode]
+            print(arg1)
 
         #Does user exist?
         parameters = {"k": self.config.osukey, "u": arg1}
@@ -63,7 +64,7 @@ class Osu():
                 data = response.json()[0]
                 list.append(data["pp_rank"])
                 
-            minelement = int(list[0])
+            minelement = 99999999
             minindex = 0
             
             for i in range (0,4):
@@ -78,18 +79,23 @@ class Osu():
         # get beatmap id and pp value for top play
         parameters = {"k": self.config.osukey, "u": data["user_id"], "m": minindex}
         userbest = requests.get("https://osu.ppy.sh/api/get_user_best", params=parameters)
-        bestinfo = userbest.json()[0]
+        try:
+            bestinfo = userbest.json()[0]
+            # get artist, title, and creator of top play map
+            parameters = {"k" : self.config.osukey, "b" : bestinfo["beatmap_id"]}
+            bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
+            bestscore_info = bestscore.json()[0]
+            toprank = "`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:6])
+        except IndexError:
+            toprank = "No Top Rank for this Mode :("
         
-        # get artist, title, and creator of top play map
-        parameters = {"k" : self.config.osukey, "b" : bestinfo["beatmap_id"]}
-        bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
-        bestscore_info = bestscore.json()[0]
         embed_fields = {
             "Mode"  :   self.utility.gamemodes[str(minindex)],
             "Performance Points"    :   data["pp_raw"],
             "Accuracy"  :   data["accuracy"][0:5],
-            "Top Rank"  :   "`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:6])
+            "Top Rank"  :   toprank
             }
+    
         user_info = discord.Embed(title='User info for %s' % (data["username"]), description='# %s (%s - # %s)' % (data["pp_rank"],data["country"], data["pp_country_rank"]), color=0xC54B5E)
         user_info = self.utility.embedDict(user_info, embed_fields)
         user_info = self.utility.embedAvatar(user_info, data["user_id"])

@@ -35,10 +35,12 @@ class Disc_Utilities():
         r.close()
 
         img_html = soup.find("div", class_="avatar-holder")
-        img_tag = img_html.contents[0]
-        img_url="https:%s" %(img_tag["src"])
-
-        embed.set_thumbnail(url=img_url)
+        try:
+            img_tag = img_html.contents[0]
+            img_url="https:%s" %(img_tag["src"])
+            embed.set_thumbnail(url=img_url)
+        except:
+            pass
 
         return embed
 
