@@ -29,7 +29,9 @@ class Osu():
         Usage !user [osu | taiko | mania | ctb] Im so mad bro
         Displays information for the mode specified. 
         """
-        
+        if not str(ctx.message.channel) in ["bot_commands", "developer"]:
+            yield from self.bot.say("Sorry. The osu! commands can only be used in the #bot_commands channel! Woof!")
+            return
         mode = arg1.split(" ")[0]
         modelist = ['osu', 'taiko', 'mania', 'ctb']
 
