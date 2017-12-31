@@ -1,5 +1,8 @@
 # HelveticOsu Bot
-This bot is created for use in the Swiss osu! community discord
+[![Python](https://img.shields.io/badge/Python-3.4-brightgreen.svg)](https://www.python.org/downloads/)
+[![Discord](https://img.shields.io/discord/124944592922476546.svg)](https://discordapp.com/invite/unhFVG6)
+
+This bot is created for use on the Swiss osu! community discord. 
 
 ## Dependencies
 
