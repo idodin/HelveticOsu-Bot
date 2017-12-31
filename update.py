@@ -26,7 +26,7 @@ class Update():
     @asyncio.coroutine
     def add(self, ctx):
         """
-        [Moderator Only] - Add the mentioned user to the user database.
+        [Moderator Only] - Add the mentioned user to the user database. Does not assign roles.
         Usage: !add @mention
         """
         try:
