@@ -12,6 +12,7 @@ class Db_Utilities():
         self.db_path=db_path
         self.osukey = osukey
         self.displayupdate = None
+        self.usercountry = None
 
     def add(self, member, osuID = None):
         # Checks if the user's discordID is already recorded
@@ -76,6 +77,7 @@ class Db_Utilities():
         c.execute('UPDATE Members SET Username = ? WHERE UserID = ?', (data["username"], member.id,))
         conn.commit()
         conn.close()
+        self.usercountry = data["country"]
         return data["username"]
 
     # Function checks if a user's osuID clashes with a current user's osuID.
