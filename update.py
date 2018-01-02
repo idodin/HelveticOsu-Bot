@@ -103,18 +103,20 @@ class Update():
     def listdb(self):
         conn = sqlite3.connect(self.config.db_path)
         c = conn.cursor()
-        db=c.execute('SELECT UserID, OsuID, Username FROM Members').fetchall()
+        db=c.execute('SELECT UserID, OsuID, Username FROM Members ORDER BY OsuID ASC').fetchall()
         message = "```Member DB: \n ---------------------------------------------------\n         DiscordID       OsuID        Username\n ---------------------------------------------------\n"
         for i in range(len(db)):
             if len(message + "[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])) > 1996:
                 message = message + "```"
-                yield from self.bot.say(message)
+                yield from self.bot.say(message, delete_after=30)
                 message = "```[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])
             else:
                 message = message + "[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])
         message = message + "```"
-        yield from self.bot.say(message)
+        yield from self.bot.say(message, delete_after=30)
         conn.close()
+
+    
         
             
 def setup(bot):
