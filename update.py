@@ -101,6 +101,10 @@ class Update():
     @commands.has_any_role(*config.modroles)
     @asyncio.coroutine
     def listdb(self):
+        """
+        [Moderator Only] - List the whole user database. (Auto-deletes after 30s)
+        Usage: !listdb
+        """
         conn = sqlite3.connect(self.config.db_path)
         c = conn.cursor()
         db=c.execute('SELECT UserID, OsuID, Username FROM Members ORDER BY OsuID ASC').fetchall()
