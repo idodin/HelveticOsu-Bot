@@ -85,7 +85,13 @@ class Osu():
             parameters = {"k" : self.config.osukey, "b" : bestinfo["beatmap_id"]}
             bestscore = requests.get("https://osu.ppy.sh/api/get_beatmaps", params=parameters)
             bestscore_info = bestscore.json()[0]
-            toprank = "`%s - %s (mapped by %s) [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:6])
+            print(bestinfo)
+            print(bestscore_info)
+            # Check if there are mods
+            if int(bestinfo["enabled_mods"]) == 0:
+                toprank = "`%s - %s (mapped by %s) - [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], bestinfo["pp"][0:6])
+            else:
+                toprank = "`%s - %s (mapped by %s) (+%s) - [%s pp]`" % (bestscore_info["artist"], bestscore_info["title"], bestscore_info["creator"], self.utility.getModList(int(bestinfo["enabled_mods"])), bestinfo["pp"][0:6])
         except IndexError:
             toprank = "No Top Rank for this Mode :("
         
