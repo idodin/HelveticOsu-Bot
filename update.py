@@ -82,7 +82,7 @@ class Update():
         try:
             conn = sqlite3.connect(self.config.db_path)
             c = conn.cursor()
-            deleted = c.execute('Select Username FROM Members WHERE OsuID = ?', (arg1,)).fetchall()
+            deleted = c.execute('SELECT Username FROM Members WHERE OsuID = ?', (arg1,)).fetchall()
             conn.commit()
         except Exception:
             yield from self.bot.say("Error in finding record to delete.")
@@ -92,10 +92,30 @@ class Update():
         if len(deleted) == 0:
             yield from self.bot.say("No records found to delete!")
         else:
-            c.execute('Delete FROM Members WHERE OsuID +?', (arg1,)).fetchall()
+            c.execute('DELETE FROM Members WHERE OsuID = ?', (arg1,)).fetchall()
             conn.commit()
             conn.close()
             yield from self.bot.say("Successfully deleted record for %s!" % (deleted[0]))
+
+    @commands.command()
+    @commands.has_any_role(*config.modroles)
+    @asyncio.coroutine
+    def listdb(self):
+        conn = sqlite3.connect(self.config.db_path)
+        c = conn.cursor()
+        db=c.execute('SELECT UserID, OsuID, Username FROM Members').fetchall()
+        message = "```Member DB: \n ---------------------------------------------------\n         DiscordID       OsuID        Username\n ---------------------------------------------------\n"
+        for i in range(len(db)):
+            if len(message + "[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])) > 1996:
+                message = message + "```"
+                yield from self.bot.say(message)
+                message = "```[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])
+            else:
+                message = message + "[%d] %s - %s - %s \n" %(i, db[i][0], db[i][1], db[i][2])
+        message = message + "```"
+        yield from self.bot.say(message)
+        conn.close()
+        
             
 def setup(bot):
     bot.add_cog(Update(bot))
