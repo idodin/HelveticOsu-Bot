@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands
 import asyncio
 
+import sqlite3
+
 import time
 
 from db import db_utilities
@@ -68,7 +70,33 @@ class Update():
             else:
                 yield from self.bot.say("Error in adding '%s'. Please ensure '%s' is not already in the database." % (member.display_name, member.display_name))
             time.sleep(5)
-         
+
+    @commands.command()
+    @commands.has_any_role(*config.modroles)
+    @asyncio.coroutine
+    def delete(self, arg1: str):
+        """
+        [Moderator Only] - Deletes the record associated with the specified OsuID Number
+        Usage: !del [osuid]
+        """
+        try:
+            conn = sqlite3.connect(self.config.db_path)
+            c = conn.cursor()
+            deleted = c.execute('Select Username FROM Members WHERE OsuID = ?', (arg1,)).fetchall()
+            conn.commit()
+        except Exception:
+            yield from self.bot.say("Error in finding record to delete.")
+
+        if len(deleted) > 1:
+            yield from self.bot.say("More than one record found! Grrrrr~")
+        if len(deleted) == 0:
+            yield from self.bot.say("No records found to delete!")
+        else:
+            c.execute('Delete FROM Members WHERE OsuID +?', (arg1,)).fetchall()
+            conn.commit()
+            conn.close()
+            yield from self.bot.say("Successfully deleted record for %s!" % (deleted[0]))
+            
 def setup(bot):
     bot.add_cog(Update(bot))
 
