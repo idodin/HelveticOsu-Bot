@@ -77,6 +77,13 @@ def restart():
     python = sys.executable
     os.execl(python, python, *sys.argv)
 
+@bot.command(pass_context=True)
+@asyncio.coroutine
+def woof():
+    """
+    Makes bot go woof!
+    """
+    yield from bot.say("Woof!")
 
 @bot.event
 @asyncio.coroutine
